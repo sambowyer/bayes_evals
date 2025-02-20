@@ -27,35 +27,8 @@ paired_comparisons = evals.paired_comparisons()
 ```
 
 Each of the `indep_results`, `indep_comparisons`, and `paired_comparisons` objects are `Result` objects, which have methods for displaying the results in two ways:
-1. As a table (print to console)
+1. As a table/dataframe (print to console via `pandas`)
 2. As a plot (using `matplotlib`)
-
-#### Independent results
-```python
-indep_intervals.print()
-```
-
-```python
-indep_intervals.plot()
-```
-
-#### Independent comparisons
-```python
-indep_comparisons.print()
-```
-
-```python
-indep_comparisons.plot()
-```
-
-#### Paired comparisons
-```python
-paired_comparisons.print()
-```
-
-```python
-paired_comparisons.plot()
-```
 
 ## Data format
 The data should be in a `pandas` DataFrame, with $Q$ = no. questions rows and $M$ = no. LLMs columns.
