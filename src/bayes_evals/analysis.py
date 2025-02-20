@@ -110,7 +110,7 @@ class IndependentIntervals(Result):
         for i, llm in enumerate(self.evals_data.model_names):
             print(f"{llm.rjust(max_name_length)}: {self.error_bars[i]}")
 
-    def plot(self, filename : str):
+    def plot(self, filename : str = None):
         plot_error_bars(self, title="Accuracy Error Bars", filename=filename)
 
 
@@ -127,7 +127,7 @@ class IndependentComparison(Result):
     def to_dataframe(self):
         return pd.DataFrame(self.comparison_matrix, columns=self.evals_data.model_names, index=self.evals_data.model_names)
 
-    def plot(self, filename : str):
+    def plot(self, filename : str = None):
         plot_comparison_matrix(self, title="Independent Comparison Matrix", filename=filename)
         
 
@@ -145,7 +145,7 @@ class PairedComparison(Result):
     def to_dataframe(self):
         return pd.DataFrame(self.comparison_matrix, columns=self.evals_data.model_names, index=self.evals_data.model_names)
 
-    def plot(self, filename : str):
+    def plot(self, filename : str = None):
         plot_comparison_matrix(self, title="Paired Comparison Matrix", filename=filename)
 
 ################################################################
@@ -324,10 +324,10 @@ def analyse(data : Union[np.ndarray, pd.DataFrame], model_names : list[str] = No
 ## Plotting
 
 
-def plot_error_bars(independent_intervals: IndependentIntervals, title: str, filename: str):
+def plot_error_bars(independent_intervals: IndependentIntervals, title: str, filename: str = None):
     assert isinstance(independent_intervals, IndependentIntervals)
     assert isinstance(title, str)
-    assert isinstance(filename, str)
+    # assert isinstance(filename, str)
 
     llm_names = independent_intervals.evals_data.model_names 
     error_bars = independent_intervals.error_bars
@@ -367,13 +367,16 @@ def plot_error_bars(independent_intervals: IndependentIntervals, title: str, fil
     ax.set_xticks(positions)
     ax.set_xticklabels(llm_names, rotation=45, ha='right')
     plt.tight_layout()
-    plt.savefig(filename)
-    plt.close(fig)
+    if filename is not None:
+        plt.savefig(filename)
+        plt.close(fig)
+    else:
+        plt.show()
 
-def plot_comparison_matrix(independent_comparison: Union[IndependentComparison, PairedComparison], title: str, filename: str):
+def plot_comparison_matrix(independent_comparison: Union[IndependentComparison, PairedComparison], title: str, filename: str = None):
     assert isinstance(independent_comparison, (IndependentComparison, PairedComparison))
     assert isinstance(title, str)
-    assert isinstance(filename, str)
+    # assert isinstance(filename, str)
 
     llm_names = independent_comparison.evals_data.model_names
     comparison_matrix = independent_comparison.comparison_matrix
@@ -391,5 +394,8 @@ def plot_comparison_matrix(independent_comparison: Union[IndependentComparison, 
     ax.set_xlabel('Model B')
     ax.set_ylabel('Model A')
     plt.tight_layout()
-    plt.savefig(filename)
-    plt.close(fig)
+    if filename is not None:
+        plt.savefig(filename)
+        plt.close(fig)
+    else:
+        plt.show()
