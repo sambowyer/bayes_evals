@@ -1,7 +1,7 @@
 # `bayes_evals`: A lightweight library for Bayesian analysis of LLM evals
 
 ## Installation
-This is a simple package, so you can just download the `bayes_evals.py` file and put it in your project directory, e.g. with `wget`:
+This is a simple package, so you can just download the `bayes_evals.py` file (located at [src/bayes_evals/bayes_evals.py](src/bayes_evals/bayes_evals.py)) and put it in your project directory, e.g. with `wget`:
 ```bash
 wget https://raw.githubusercontent.com/sambowyer/bayes_evals/main/src/bayes_evals/bayes_evals.py
 ```
