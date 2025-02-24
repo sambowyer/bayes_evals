@@ -30,7 +30,8 @@ indep_intervals = be.independent_intervals(eval_data, alpha=0.05)
 # ... in which case you can also do independent LLM comparisons...
 indep_comparisons = be.independent_comparisons(eval_data)
 
-# ... or get pairwise comparisons between LLMs
+# ... or get comparisons between LLMs assuming a paired evals model...
+# (i.e. with the same questions asked to each LLM)
 paired_comparisons = be.paired_comparisons(eval_data)
 ```
 Each of the `indep_results`, `indep_comparisons`, and `paired_comparisons` objects are just `pd.DataFrame` objects with model names as the column names.
