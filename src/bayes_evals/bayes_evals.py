@@ -1,9 +1,6 @@
 import numpy as np
 import scipy.stats as stats
 import pandas as pd
-from typing import Union
-
-# from .plotting import plot_error_bars, plot_comparison_matrix
 import matplotlib.pyplot as plt
 
 __all__ = [

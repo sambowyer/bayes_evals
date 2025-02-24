@@ -1,6 +1,16 @@
 # `bayes_evals`: A lightweight library for Bayesian analysis of LLM evals
 
 ## Installation
+This is a simple package, so you can just download the `bayes_evals.py` file and put it in your project directory, e.g. with `wget`:
+```bash
+wget https://raw.githubusercontent.com/sambowyer/bayes_evals/main/src/bayes_evals/bayes_evals.py
+```
+or `curl`:
+```bash
+curl -L -O https://raw.githubusercontent.com/sambowyer/bayes_evals/main/src/bayes_evals/bayes_evals.py
+```
+
+Alternatively, you can install the package by cloning this repository and using pip:
 ```bash
 pip install -e .
 ```
@@ -13,41 +23,38 @@ import pandas as pd
 # Load the data (should NOT contain an index column)
 eval_data = pd.from_csv('data/evals.csv')
 
-# Analyse the data
-evals = be.analyse(eval_data)
+# Get the results either for individual LLMs (each column in the data)
+# with a specified confidence level alpha...
+indep_intervals = be.independent_intervals(eval_data, alpha=0.05)
 
-# Get the results either for individual LLMs (each column in the data)...
-indep_intervals = evals.independent_intervals()
-
-# ... in which case you can then do independent LLM comparisons...
-indep_comparisons = evals.independent_comparisons()
+# ... in which case you can also do independent LLM comparisons...
+indep_comparisons = be.independent_comparisons(eval_data)
 
 # ... or get pairwise comparisons between LLMs
-paired_comparisons = evals.paired_comparisons()
+paired_comparisons = be.paired_comparisons(eval_data)
 ```
-
-Each of the `indep_results`, `indep_comparisons`, and `paired_comparisons` objects are `Result` objects, which have methods for displaying the results in two ways:
-1. As a table/dataframe (print to console via `pandas`)
-2. As a plot (using `matplotlib`)
+Each of the `indep_results`, `indep_comparisons`, and `paired_comparisons` objects are just `pd.DataFrame` objects with model names as the column names.
+The `indep_results` object has two rows: `lower` and `upper`.
+The `indep_comparisons` and `paired_comparisons` objects have a row for each model, with entry at row $i$ and column $j$ being the probability that model $i$ is better than model $j$.
 
 ## Data format
 The data should be in a `pandas` DataFrame, with $Q$ = no. questions rows and $M$ = no. LLMs columns.
 The data should be binary, with 1 indicating a correct answer and 0 indicating an incorrect answer.
 The columns should be named with the LLMs' names.
 
-Alternatively, the data can just be an $[M,Q]$ numpy array, optionally with a list of $M$ LLM names.
+## Displaying results
+You can also make matplotlib plots of the results using the following functions:
+```python
+be.plot_intervals(eval_data, indep_intervals, filename='plots/indep_intervals.png')
+```
+![Independent LLM intervals](examples/plots/indep_intervals.png)
 
+```python
+be.plot_comparisons(indep_comparisons, filename='plots/indep_comparisons.png', title="Independent LLM comparisons")
+```
+![Independent LLM comparisons](examples/plots/indep_comparisons.png)
 
-#### Laurence's README
-Two kinds of question we allow to ask:
-* Paired comparison, question-level data
-  - Paired comparison (i.e. two models) makes sense; we could do a comparison with more models, but not clear how that would help us.
-  - No tasks (probably best to assume no task-level structure).
-  - No clusters (I'm not sure how often that comes up anyway.
-  - Input data is a binary tensor [M, Q], where M is the number of models, and Q is the number of questions.
-  - Individual model error bars (e.g. for plotting) from single-model Beta-Binomial model.
-  - Paired comparisons from the four-way Dirichlet.
-* Indepdendent comparison, aggregate-level data.
-  - Input data is binary tensor [M,Q]
-
-Then, what happens?  After the first call that ingest the data, we get an intermediate Result object.  Call methods on this intermediate Result object to display the results in different ways.
+```python
+be.plot_comparisons(paired_comparisons, filename='plots/paired_comparisons.png', title="Paired LLM comparisons")
+```
+![Paired LLM comparisons](examples/plots/paired_comparisons.png)
