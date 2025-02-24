@@ -24,7 +24,7 @@ import pandas as pd
 eval_data = pd.from_csv('data/evals.csv')
 
 # Get the results either for individual LLMs (each column in the data)
-# with a specified confidence level alpha...
+# with a specified confidence level alpha (default=0.05)...
 indep_intervals = be.independent_intervals(eval_data, alpha=0.05)
 
 # ... in which case you can also do independent LLM comparisons...
@@ -58,3 +58,8 @@ be.plot_comparisons(indep_comparisons, filename='plots/indep_comparisons.png', t
 be.plot_comparisons(paired_comparisons, filename='plots/paired_comparisons.png', title="Paired LLM comparisons")
 ```
 ![Paired LLM comparisons](examples/plots/paired_comparisons.png)
+
+## Examples
+See the `examples` directory for a Jupyter notebook and basic script that generate the above plots:
+- [Jupyter notebook](examples/basic_example.ipynb)
+- [Script](examples/basic_example.py)
