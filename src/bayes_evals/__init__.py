@@ -1,1 +1,1 @@
-from .analysis import *
+from .bayes_evals import *
