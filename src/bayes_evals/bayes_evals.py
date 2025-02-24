@@ -105,9 +105,9 @@ def independent_comparisons(df, num_samples=10_000, prior=(1, 1)):
 
     Returns
     -------
-    comparison_matrix_df: np.ndarray (shape [M,M])
-        Square df containing entries of posterior probability of the difference in theta_A and theta_B being greater than 0
-        for all pairs of models A and B (with nan on the diagonal)
+    comparison_matrix_df: pd.DataFrame (shape [M,M])
+        Square pd.DataFrame containing entries of posterior probability of the difference in theta_A and theta_B being greater than 0
+        for all pairs of models A (rows) and B (columns) (with nan on the diagonal)
     '''
     assert isinstance(df, pd.DataFrame), f"Data must be a pandas DataFrame (found {type(df)})"
 
@@ -140,9 +140,9 @@ def paired_comparisons(df, num_samples=10_000):
 
     Returns
     -------
-    comparison_matrix_df: np.ndarray (shape [M,M])
-        Square df containing entries of posterior probability of the difference in theta_A and theta_B being greater than 0
-        for all pairs of models A and B (with nan on the diagonal)
+    comparison_matrix_df: np.pd.DataFrame (shape [M,M])
+        Square pd.DataFrame containing entries of posterior probability of the difference in theta_A and theta_B being greater than 0
+        for all pairs of models A (rows) sand B (columns) (with nan on the diagonal)
     '''
     assert isinstance(df, pd.DataFrame), f"Data must be a pandas DataFrame (found {type(df)})"
 
@@ -159,9 +159,9 @@ def paired_comparisons(df, num_samples=10_000):
 
     # create the 2x2 contingency table (flattened)
     #              | B correct | B incorrect
-    # ------------------------------------
-    # A correct    | S        | T 
-    # A incorrect  | U        | V 
+    # -------------|-----------|----------
+    # A correct    | S         | T 
+    # A incorrect  | U         | V 
     S = (data_A * data_B).sum(-1)             # S = A correct,   B correct
     T = (data_A * (1 - data_B)).sum(-1)       # T = A correct,   B incorrect
     U = ((1 - data_A) * data_B).sum(-1)       # U = A incorrect, B correct
@@ -214,7 +214,6 @@ def plot_intervals(eval_df, intervals_df, filename = None, title = "Model Accura
     positions = np.arange(len(model_names))
     for i, llm in enumerate(model_names):
         ax.bxp([{
-                # 'med': error_bars_0_5[llm][method_idx].mean(),
                 'med': means[i],
                 'q1': means[i],
                 'q3': means[i],
@@ -228,9 +227,6 @@ def plot_intervals(eval_df, intervals_df, filename = None, title = "Model Accura
             widths=1, 
             showfliers=False, 
             boxprops=dict(color='#444'), 
-            # medianprops=dict(color=COLOURS[method], linewidth=0), 
-            # whiskerprops=dict(color=COLOURS[method], zorder=50), 
-            # capprops=dict(color=COLOURS[method])
     )
     ax.set_ylabel('Accuracy')
     ax.set_title(title)
