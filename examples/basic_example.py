@@ -3,8 +3,6 @@ import pandas as pd
 
 # Load the data (should NOT contain an index column)
 eval_data = pd.read_csv('data/langchain_data_tool_use_FULL.csv')
-# remove first two columns
-eval_data = eval_data.iloc[:, 2:]
 print(f"Data shape: {eval_data.shape}")
 print(eval_data)
 
