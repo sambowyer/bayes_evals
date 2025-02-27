@@ -7,13 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.special import erf
 from scipy.stats import norm
 
-__all__ = [
-    'independent_intervals',
-    'independent_comparisons',
-    'paired_comparisons',
-    'plot_intervals',
-    'plot_comparisons',
-]
 
 def convert_to_df(data, model_names=None):
     if isinstance(data, pd.DataFrame):
