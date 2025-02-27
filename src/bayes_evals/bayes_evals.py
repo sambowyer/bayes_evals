@@ -154,6 +154,12 @@ def paired_comparisons(df, num_samples=10_000):
                                         # and the second M rows are (A2, B1), (A2, B2), ..., (A2, BM)
     assert data_A.shape == data_B.shape == (M*M, Q)
 
+    # remove the diagonal (i.e. the same model)
+    data_A = data_A[~np.eye(M, dtype=bool).reshape(M*M)].reshape(M*(M-1), Q)
+    data_B = data_B[~np.eye(M, dtype=bool).reshape(M*M)].reshape(M*(M-1), Q)
+
+    assert data_A.shape == data_B.shape == (M*(M-1), Q)
+
     # create the 2x2 contingency table (flattened)
     #              | B correct | B incorrect
     # -------------|-----------|----------
@@ -165,20 +171,20 @@ def paired_comparisons(df, num_samples=10_000):
     V = ((1 - data_A) * (1 - data_B)).sum(-1) # V = A incorrect, B incorrect
 
     table = np.column_stack([S, T, U, V])
-    assert table.shape == (M*M, 4)
+    assert table.shape == (M*(M-1), 4)
 
     # Importance sampling based on Bivariate Gaussian model
     # sample a bunch of theta_As, theta_Bs and rhos from the proposal
-    theta_As = np.random.beta(1, 1, size=(M*M, num_samples))
-    theta_Bs = np.random.beta(1, 1, size=(M*M, num_samples))
-    rhos     = np.random.uniform(-1, 1, size=(M*M, num_samples))
+    theta_As = np.random.beta(1, 1, size=(M*(M-1), num_samples))
+    theta_Bs = np.random.beta(1, 1, size=(M*(M-1), num_samples))
+    rhos     = np.random.uniform(-1, 1, size=(M*(M-1), num_samples))
 
     diff = theta_As - theta_Bs
 
     # calculate the mus for the 2D Gaussian (using the pdf of the bivariate normal)
     mu_A = stats.norm(0,1).ppf(theta_As)
     mu_B = stats.norm(0,1).ppf(theta_Bs)
-    assert mu_A.shape == mu_B.shape == (M*M, num_samples)
+    assert mu_A.shape == mu_B.shape == (M*(M-1), num_samples)
 
     # calculate the probabilities of each case
     theta_V = binorm_cdf(0, 0, mu_A, mu_B, 1, 1, rhos)
@@ -190,7 +196,7 @@ def paired_comparisons(df, num_samples=10_000):
     # (with np.errstate to ignore nan-based errors (if we have log(nan)=nan we don't care))
     with np.errstate(divide='ignore', invalid='ignore'):
         log_likelihoods = S[:,None] * np.log(theta_S) + T[:,None] * np.log(theta_T) + U[:,None] * np.log(theta_U) + V[:,None] * np.log(theta_V)
-    assert log_likelihoods.shape == (M*M, num_samples)
+    assert log_likelihoods.shape == (M*(M-1), num_samples)
 
     # (which are equal to the weights since proposal = prior)
     log_weights = log_likelihoods
@@ -200,25 +206,30 @@ def paired_comparisons(df, num_samples=10_000):
     weights = np.exp(log_weights - max_log_weights)
     weights[np.isnan(weights)] = 0
     weights /= weights.sum(axis=-1, keepdims=True)
-    assert weights.shape == (M*M, num_samples)
+    assert weights.shape == (M*(M-1), num_samples)
 
     # Get posterior samples
-    diff_post = np.zeros((M*M, num_samples))
+    diff_post = np.zeros((M*(M-1), num_samples))
         
-    for r in range(M*M):
+    for r in range(M*(M-1)):
         diff_post[r] = diff[r, np.random.choice(num_samples, size=num_samples, replace=True, p=weights[r])]
 
-    assert diff_post.shape == (M*M, num_samples)
+    assert diff_post.shape == (M*(M-1), num_samples)
 
     # calculate the posterior probability of the difference being greater than 0
     posterior_prob = (diff_post > 0).mean(-1) 
-    assert posterior_prob.shape == (M*M,)
+    assert posterior_prob.shape == (M*(M-1),)
 
-    comparison_matrix = posterior_prob.reshape(M, M)
+    # reshape to a matrix with nan on the diagonal
+    comparison_matrix = np.empty((M*M,))
 
-    # set diagonal to nan
-    np.fill_diagonal(comparison_matrix, np.nan)
+    diagonal = np.eye(M, dtype=bool).reshape(M*M)
+    comparison_matrix[diagonal]  = np.nan
+    comparison_matrix[~diagonal] = posterior_prob
 
+    comparison_matrix = comparison_matrix.reshape(M, M)
+
+    # convert to DataFrame
     comparison_matrix_df = pd.DataFrame(comparison_matrix, index=model_names, columns=model_names)
 
     return comparison_matrix_df
