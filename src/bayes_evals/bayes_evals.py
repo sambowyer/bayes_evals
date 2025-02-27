@@ -161,14 +161,12 @@ def paired_comparisons(df, num_samples=10_000):
     assert data_A.shape == data_B.shape == (M*(M-1), Q)
 
     # create the 2x2 contingency table (flattened)
-    #              | B correct | B incorrect
-    # -------------|-----------|----------
-    # A correct    | S         | T 
-    # A incorrect  | U         | V 
     S = (data_A * data_B).sum(-1)             # S = A correct,   B correct
     T = (data_A * (1 - data_B)).sum(-1)       # T = A correct,   B incorrect
     U = ((1 - data_A) * data_B).sum(-1)       # U = A incorrect, B correct
     V = ((1 - data_A) * (1 - data_B)).sum(-1) # V = A incorrect, B incorrect
+
+    assert S.shape == T.shape == U.shape == V.shape == (M*(M-1),)
 
     # Importance sampling based on Bivariate Gaussian model
     # sample a bunch of theta_As, theta_Bs and rhos from the proposal
@@ -190,7 +188,7 @@ def paired_comparisons(df, num_samples=10_000):
     theta_U = 1 - theta_As - theta_V
 
     # calculate the log likelihoods
-    # (with np.errstate to ignore nan-based errors (if we have log(nan)=nan we don't care))
+    # (with np.errstate to ignore nan-based errors -- which are fine since those samples will be ignored)
     with np.errstate(divide='ignore', invalid='ignore'):
         log_likelihoods = S[:,None] * np.log(theta_S) + T[:,None] * np.log(theta_T) + U[:,None] * np.log(theta_U) + V[:,None] * np.log(theta_V)
     assert log_likelihoods.shape == (M*(M-1), num_samples)
