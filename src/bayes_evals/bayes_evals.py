@@ -3,6 +3,10 @@ import scipy.stats as stats
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# for bivariate normal CDF
+from scipy.special import erf
+from scipy.stats import norm
+
 __all__ = [
     'independent_intervals',
     'independent_comparisons',
@@ -170,18 +174,50 @@ def paired_comparisons(df, num_samples=10_000):
     table = np.column_stack([S, T, U, V])
     assert table.shape == (M*M, 4)
 
-    dir_post = np.zeros((M*M, num_samples, 4))
-    for comparison in range(M*M):
-        dir_post[comparison] = stats.dirichlet(table[comparison] + 1).rvs(size=(num_samples,))
+    # Importance sampling based on Bivariate Gaussian model
+    # sample a bunch of theta_As, theta_Bs and rhos from the proposal
+    theta_As = np.random.beta(1, 1, size=(M*M, num_samples))
+    theta_Bs = np.random.beta(1, 1, size=(M*M, num_samples))
+    rhos     = np.random.uniform(-1, 1, size=(M*M, num_samples))
 
-    assert np.allclose(dir_post.sum(-1), 1)
+    diff = theta_As - theta_Bs
 
-    # theta_As_post = dir_post[..., (0,1)].sum(-1)  # S + T
-    # theta_Bs_post = dir_post[..., (0,2)].sum(-1)  # S + U
-    # diff_post = theta_As_post - theta_Bs_post     # (S + T) - (S + U) = T - U
-    diff_post = dir_post[..., 1] - dir_post[..., 2]
+    # calculate the mus for the 2D Gaussian (using the pdf of the bivariate normal)
+    mu_A = stats.norm(0,1).ppf(theta_As)
+    mu_B = stats.norm(0,1).ppf(theta_Bs)
+    assert mu_A.shape == mu_B.shape == (M*M, num_samples)
+
+    # calculate the probabilities of each case
+    theta_V = binorm_cdf(0, 0, mu_A, mu_B, 1, 1, rhos)
+    theta_S = theta_As + theta_Bs + theta_V - 1
+    theta_T = 1 - theta_Bs - theta_V
+    theta_U = 1 - theta_As - theta_V
+
+    # calculate the log likelihoods
+    # (with np.errstate to ignore nan-based errors (if we have log(nan)=nan we don't care))
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_likelihoods = S[:,None] * np.log(theta_S) + T[:,None] * np.log(theta_T) + U[:,None] * np.log(theta_U) + V[:,None] * np.log(theta_V)
+    assert log_likelihoods.shape == (M*M, num_samples)
+
+    # (which are equal to the weights since proposal = prior)
+    log_weights = log_likelihoods
+
+    # normalise the weights (with nan being probabilty 0)
+    max_log_weights = np.nanmax(log_weights, axis=-1, keepdims=True)
+    weights = np.exp(log_weights - max_log_weights)
+    weights[np.isnan(weights)] = 0
+    weights /= weights.sum(axis=-1, keepdims=True)
+    assert weights.shape == (M*M, num_samples)
+
+    # Get posterior samples
+    diff_post = np.zeros((M*M, num_samples))
+        
+    for r in range(M*M):
+        diff_post[r] = diff[r, np.random.choice(num_samples, size=num_samples, replace=True, p=weights[r])]
+
     assert diff_post.shape == (M*M, num_samples)
 
+    # calculate the posterior probability of the difference being greater than 0
     posterior_prob = (diff_post > 0).mean(-1) 
     assert posterior_prob.shape == (M*M,)
 
@@ -193,6 +229,175 @@ def paired_comparisons(df, num_samples=10_000):
     comparison_matrix_df = pd.DataFrame(comparison_matrix, index=model_names, columns=model_names)
 
     return comparison_matrix_df
+
+## Bivariate Normal CDF
+# using jax implementation: https://github.com/jax-ml/jax/issues/10562
+# from the paper "A simple approximation for the bivariate normal integral", Tsay & Ke (2021)
+# https://www.tandfonline.com/doi/full/10.1080/03610918.2021.1884718
+
+cdf1d = norm.cdf
+
+c1 = -1.0950081470333
+c2 = -0.75651138383854
+sqrt2 = 1.4142135623730951
+
+def case1(p, q, rho, a, b):
+    a2 = a * a
+    b2 = b * b
+
+    line11 = 0.5 * (erf(q / sqrt2) + erf(b / (sqrt2 * a)))
+    aux1 = a2 * c1 * c1 - 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    aux2 = 4 * (1 - a2 * c2)
+    line12 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux1 / aux2)
+
+    line21 = 1 - erf((sqrt2 * b - a2 * c1) / (2 * a * np.sqrt(1 - a2 * c2)))
+    aux3 = a2 * c1 * c1 + 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    line22 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux3 / aux2)
+
+    aux4 = sqrt2 * q - sqrt2 * a2 * c2 * q - sqrt2 * a * b * c2 - a * c1
+    aux5 = 2 * np.sqrt(1 - a2 * c2)
+    line31 = erf(aux4 / aux5)
+    line32 = erf((a2 * c1 + sqrt2 * b) / (2 * a * np.sqrt(1 - a2 * c2)))
+
+    return line11 + (line12 * line21) - (line22 * (line31 + line32))
+
+def case2(p, q):
+    return cdf1d(p) * cdf1d(q)
+
+def case3(p, q, rho, a, b):
+    a2 = a * a
+    b2 = b * b
+
+    aux1 = a2 * c1 * c1 - 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    aux2 = 4 * (1 - a2 * c2)
+    line11 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux1 / aux2)
+
+    aux3 = sqrt2 * q - sqrt2 * a2 * c2 * q - sqrt2 * a * b * c2 + a * c1
+    aux4 = 2 * np.sqrt(1 - a2 * c2)
+    line12 = 1.0 + erf(aux3 / aux4)
+
+    return line11 * line12
+
+def case4(p, q, rho, a, b):
+    a2 = a * a
+    b2 = b * b
+
+    line11 = 0.5 + 0.5 * erf(q / sqrt2)
+    aux1 = a2 * c1 * c1 + 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    aux2 = 4 * (1 - a2 * c2)
+    line12 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux1 / aux2)
+
+    aux3 = sqrt2 * q - sqrt2 * a2 * c2 * q - sqrt2 * a * b * c2 - a * c1
+    aux4 = 2 * np.sqrt(1 - a2 * c2)
+    line2 = 1.0 + erf(aux3 / aux4)
+
+    return line11 - (line12 * line2)
+
+def case5(p, q, rho, a, b):
+    a2 = a * a
+    b2 = b * b
+
+    line11 = 0.5 - 0.5 * erf(b / (sqrt2 * a))
+    aux1 = a2 * c1 * c1 + 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    aux2 = 4 * (1 - a2 * c2)
+    line12 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux1 / aux2)
+
+    line21 = 1 - erf((sqrt2 * b + a2 * c1) / (2 * a * np.sqrt(1 - a2 * c2)))
+    aux3 = a2 * c1 * c1 - 2 * sqrt2 * b * c1 + 2 * b2 * c2
+    line22 = (1.0 / (4 * np.sqrt(1 - a2 * c2))) * np.exp(aux3 / aux2)
+
+    aux4 = sqrt2 * q - sqrt2 * a2 * c2 * q - sqrt2 * a * b * c2 + a * c1
+    aux5 = 2 * np.sqrt(1 - a2 * c2)
+    line31 = erf(aux4 / aux5)
+    line32 = erf((-a2 * c1 + sqrt2 * b) / (2 * a * np.sqrt(1 - a2 * c2)))
+
+    return line11 - (line12 * line21) + line22 * (line31 + line32)
+
+def binorm_cdf(x1, x2, mu1, mu2, sigma1, sigma2, rho):
+    '''
+    Compute the bivariate normal CDF.
+
+    Parameters:
+    ----------
+    x1, x2: int, float, np.ndarray
+        The values at which to compute the CDF.
+    mu1, mu2: int, float, np.ndarray
+        The margianal means of the normal distribution.
+    sigma1, sigma2: int, float, np.ndarray
+        The marginal standard deviations of the normal distribution.
+    rho: int, float, np.ndarray
+        The correlation coefficient of the normal distribution.
+    '''
+    # Make sure the inputs are floats, or if ints, convert them to floats
+    # Make sure the inputs are either int, float or np.ndarray.
+    # If they're float, convert them to singleton float np.ndarrays.
+    # If they're np.ndarray, make sure they're of the same shape.
+    shape = None
+    dtype = None
+    for input_ in [x1, x2, mu1, mu2, sigma1, sigma2, rho]:
+        if isinstance(input_, np.ndarray):
+            if shape is None:
+                shape = input_.shape
+            else:
+                assert shape == input_.shape, f"All np.ndarrays must have the same shape. Got {input_.shape} and {shape}."
+            if dtype is None:
+                dtype = input_.dtype
+            else:
+                assert dtype == input_.dtype, f"All np.ndarrays must have the same dtype. Got {input_.dtype} and {dtype}."
+        else:
+            assert isinstance(input_, (int, float)), f"All inputs must be either int, float or np.ndarray. Got {type(input_)}."
+    
+    if shape is None:
+        shape = (1,)
+    if dtype is None:
+        dtype = np.float64
+
+    # Convert the inputs to np.ndarray if they're int or float
+    x1     = np.broadcast_to(np.array([float(x1)],     dtype=dtype), shape) if isinstance(x1,     (int, float)) else x1
+    x2     = np.broadcast_to(np.array([float(x2)],     dtype=dtype), shape) if isinstance(x2,     (int, float)) else x2
+    mu1    = np.broadcast_to(np.array([float(mu1)],    dtype=dtype), shape) if isinstance(mu1,    (int, float)) else mu1
+    mu2    = np.broadcast_to(np.array([float(mu2)],    dtype=dtype), shape) if isinstance(mu2,    (int, float)) else mu2
+    sigma1 = np.broadcast_to(np.array([float(sigma1)], dtype=dtype), shape) if isinstance(sigma1, (int, float)) else sigma1
+    sigma2 = np.broadcast_to(np.array([float(sigma2)], dtype=dtype), shape) if isinstance(sigma2, (int, float)) else sigma2
+    rho    = np.broadcast_to(np.array([float(rho)],    dtype=dtype), shape) if isinstance(rho,    (int, float)) else rho
+
+    p = (x1 - mu1) / sigma1
+    q = (x2 - mu2) / sigma2
+
+    a = -rho / np.sqrt(1 - rho * rho)
+    b = p / np.sqrt(1 - rho * rho)
+
+    assert a.shape == b.shape == p.shape == q.shape == rho.shape == shape, f"Shapes of a, b, p, q and rho must be the same. Got {a.shape}, {b.shape}, {p.shape}, {q.shape} and {rho.shape}."
+
+    # find the indices where each case applies
+    case1_indices = (a > 0) & (a * q + b >= 0)
+    case2_indices = (a == 0)
+    case3_indices = (a > 0) & (a * q + b < 0)
+    case4_indices = (a < 0) & (a * q + b >= 0)
+    case5_indices = (a < 0) & (a * q + b < 0)
+
+    # compute the CDF for each case
+    result = np.zeros_like(p)
+
+    result[case1_indices] = case1(p[case1_indices], q[case1_indices], rho[case1_indices], a[case1_indices], b[case1_indices])
+    result[case2_indices] = case2(p[case2_indices], q[case2_indices])
+    result[case3_indices] = case3(p[case3_indices], q[case3_indices], rho[case3_indices], a[case3_indices], b[case3_indices])
+    result[case4_indices] = case4(p[case4_indices], q[case4_indices], rho[case4_indices], a[case4_indices], b[case4_indices])
+    result[case5_indices] = case5(p[case5_indices], q[case5_indices], rho[case5_indices], a[case5_indices], b[case5_indices])
+
+    return result
+
+    # if a > 0 and a * q + b >= 0:
+    #     return case1(p, q, rho, a, b)
+    # if a == 0:
+    #     return case2(p, q)
+    # if a > 0 and a * q + b < 0:
+    #     return case3(p, q, rho, a, b)
+    # if a < 0 and a * q + b >= 0:
+    #     return case4(p, q, rho, a, b)
+    # if a < 0 and a * q + b < 0:
+    #     return case5(p, q, rho, a, b)
+
 
 ################################################################
 ## Plotting
