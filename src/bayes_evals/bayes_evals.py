@@ -170,9 +170,6 @@ def paired_comparisons(df, num_samples=10_000):
     U = ((1 - data_A) * data_B).sum(-1)       # U = A incorrect, B correct
     V = ((1 - data_A) * (1 - data_B)).sum(-1) # V = A incorrect, B incorrect
 
-    table = np.column_stack([S, T, U, V])
-    assert table.shape == (M*(M-1), 4)
-
     # Importance sampling based on Bivariate Gaussian model
     # sample a bunch of theta_As, theta_Bs and rhos from the proposal
     theta_As = np.random.beta(1, 1, size=(M*(M-1), num_samples))
@@ -390,17 +387,6 @@ def binorm_cdf(x1, x2, mu1, mu2, sigma1, sigma2, rho):
     result[case5_indices] = case5(p[case5_indices], q[case5_indices], rho[case5_indices], a[case5_indices], b[case5_indices])
 
     return result
-
-    # if a > 0 and a * q + b >= 0:
-    #     return case1(p, q, rho, a, b)
-    # if a == 0:
-    #     return case2(p, q)
-    # if a > 0 and a * q + b < 0:
-    #     return case3(p, q, rho, a, b)
-    # if a < 0 and a * q + b >= 0:
-    #     return case4(p, q, rho, a, b)
-    # if a < 0 and a * q + b < 0:
-    #     return case5(p, q, rho, a, b)
 
 
 ################################################################
