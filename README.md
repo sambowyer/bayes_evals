@@ -67,3 +67,18 @@ be.plot_comparisons(paired_comparisons, filename='plots/paired_comparisons.png',
 See the `examples` directory for a Jupyter notebook and basic script that generate the above plots:
 - [Jupyter notebook](examples/basic_example.ipynb)
 - [Script](examples/basic_example.py)
+
+
+# Citing
+If you find this work useful, please consider citing the accompanying paper:
+```bibtex
+@misc{bowyer2025positiondontuseclt,
+      title={Position: Don't use the CLT in LLM evals with fewer than a few hundred datapoints}, 
+      author={Sam Bowyer and Laurence Aitchison and Desi R. Ivanova},
+      year={2025},
+      eprint={2503.01747},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2503.01747}, 
+}
+```
