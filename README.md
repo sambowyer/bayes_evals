@@ -1,6 +1,6 @@
 # `bayes_evals`: A lightweight library for Bayesian analysis of LLM evals
 
-Implementing the methods from the paper "[Position: Don't use the CLT in LLM evals with fewer than a few hundred datapoints](https://arxiv.org/abs/2503.01747)".
+Implementing the methods from the ICML 2025 spotlight paper "[Position: Don't use the CLT in LLM evals with fewer than a few hundred datapoints](https://arxiv.org/abs/2503.01747)".
 (Code to reproduce the experiments in that paper can be found at a [different repo](https://github.com/sambowyer/no_clt_paper).)
 
 ## Installation
