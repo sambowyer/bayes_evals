@@ -1,5 +1,8 @@
 # `bayes_evals`: A lightweight library for Bayesian analysis of LLM evals
 
+Implementing the methods from the ICML 2025 spotlight paper "[Position: Don't use the CLT in LLM evals with fewer than a few hundred datapoints](https://arxiv.org/abs/2503.01747)".
+(Code to reproduce the experiments in that paper can be found at a [different repo](https://github.com/sambowyer/no_clt_paper).)
+
 ## Installation
 This is a simple package, so you can just download the `bayes_evals.py` file (located at [src/bayes_evals/bayes_evals.py](src/bayes_evals/bayes_evals.py)) and put it in your project directory, e.g. with `wget`:
 ```bash
@@ -64,3 +67,16 @@ be.plot_comparisons(paired_comparisons, filename='plots/paired_comparisons.png',
 See the `examples` directory for a Jupyter notebook and basic script that generate the above plots:
 - [Jupyter notebook](examples/basic_example.ipynb)
 - [Script](examples/basic_example.py)
+
+
+# Citing
+If you find this work useful, please consider citing the accompanying paper:
+```bibtex
+@inproceedings{bowyer2025positiondontuseclt,
+      title={Position: Don't use the CLT in LLM evals with fewer than a few hundred datapoints}, 
+      author={Sam Bowyer and Laurence Aitchison and Desi R. Ivanova},
+      year={2025},
+      booktitle={Forty-second International Conference on Machine Learning Position Paper Track},
+      url={https://arxiv.org/abs/2503.01747}, 
+}
+```
