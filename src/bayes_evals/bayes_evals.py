@@ -172,7 +172,8 @@ def paired_comparisons(df, num_samples=10_000):
     # sample a bunch of theta_As, theta_Bs and rhos from the proposal
     theta_As = np.random.beta(1, 1, size=(M*(M-1), num_samples))
     theta_Bs = np.random.beta(1, 1, size=(M*(M-1), num_samples))
-    rhos     = np.random.uniform(-1, 1, size=(M*(M-1), num_samples))
+    rhos = 2*np.random.beta(4,2, size=(M*(M-1), num_samples)) - 1
+    rhos = np.clip(rhos, -1 + 1e-20, 1 - 1e-20)
 
     diff = theta_As - theta_Bs
 
